@@ -1,0 +1,52 @@
+name: Publish Spottarr build artifact
+
+# Manually triggered from the Actions tab in your fork.
+# Builds Spottarr.Web in Release mode and uploads the published output
+# as a downloadable zip artifact, so it can be copied to a host that only
+# has the .NET runtime installed (no SDK/build needed there).
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to build (e.g. main or v1.17.1)"
+        required: false
+        default: "main"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: >
+          dotnet restore src/Spottarr.Web/Spottarr.Web.csproj
+          /p:NuGetAudit=false
+          /p:TreatWarningsAsErrors=false
+          /p:WarningsAsErrors=""
+
+      - name: Publish
+        run: >
+          dotnet publish src/Spottarr.Web/Spottarr.Web.csproj
+          -c Release
+          -o ./publish-output
+          --runtime linux-x64
+          --self-contained false
+          /p:NuGetAudit=false
+          /p:TreatWarningsAsErrors=false
+          /p:WarningsAsErrors=""
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spottarr-publish-${{ github.event.inputs.ref }}
+          path: ./publish-output
+          retention-days: 14
